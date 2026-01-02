@@ -1,40 +1,92 @@
 
-import React, { useEffect } from 'react';
-import { View, StyleSheet, SafeAreaView, StatusBar } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useGameStore } from './store';
-import IntroScreen from './screens/IntroScreen';
-import MenuScreen from './screens/MenuScreen';
-import GameScreen from './screens/GameScreen';
-import GitHubScreen from './screens/GitHubScreen';
-import { COLORS } from './constants';
-import { audioService } from './services/audioService';
-import { dbService } from './services/dbService';
+import React, { useState, useCallback } from 'react';
+import MenuScreen from './components/MenuScreen';
+import GameScreen from './components/GameScreen';
+import IntroSequence from './components/IntroSequence';
+import LoadingScreen from './components/LoadingScreen';
+import ResultsScreen from './components/ResultsScreen';
+import LeaderboardScreen from './components/LeaderboardScreen';
+import { Song, ViewState, GameResults } from './types';
+import { SONGS, COLORS } from './constants';
 
-export default function App() {
-  const { view, setView, setHighScore } = useGameStore();
+const App: React.FC = () => {
+  const [view, setView] = useState<ViewState>('INTRO');
+  const [selectedSong, setSelectedSong] = useState<Song>(SONGS[0]);
+  const [isDemoMode, setIsDemoMode] = useState(false);
+  const [lastResults, setLastResults] = useState<GameResults | null>(null);
 
-  useEffect(() => {
-    audioService.init();
-    dbService.getHighScore().then(setHighScore);
+  const handlePlay = useCallback((song: Song, demo: boolean = false) => {
+    setSelectedSong(song);
+    setIsDemoMode(demo);
+    setView('LOADING');
+  }, []);
+
+  const handleLoadingComplete = useCallback(() => {
+    setView('GAME');
+  }, []);
+
+  const handleGameFinish = useCallback((results: GameResults) => {
+    setLastResults(results);
+    setView('RESULTS');
+  }, []);
+
+  const handleExitGame = useCallback(() => {
+    setIsDemoMode(false);
+    setView('MENU');
+  }, []);
+
+  const handleShowLeaderboard = useCallback(() => {
+    setView('LEADERBOARD');
+  }, []);
+
+  const handleIntroComplete = useCallback(() => {
+    setView('MENU');
   }, []);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
-        <View style={styles.container}>
-          {view === 'INTRO' && <IntroScreen onComplete={() => setView('MENU')} />}
-          {view === 'MENU' && <MenuScreen />}
-          {view === 'GAME' && <GameScreen />}
-          {view === 'GITHUB' && <GitHubScreen />}
-        </View>
-      </SafeAreaView>
-    </GestureHandlerRootView>
-  );
-}
+    <div className="w-full h-screen flex justify-center bg-black overflow-hidden font-sans">
+      <div className="w-full h-full max-w-lg relative shadow-2xl overflow-hidden" style={{ backgroundColor: COLORS.bg }}>
+        {view === 'INTRO' && (
+           <IntroSequence onComplete={handleIntroComplete} />
+        )}
+        
+        {view === 'LOADING' && (
+          <LoadingScreen song={selectedSong} onComplete={handleLoadingComplete} />
+        )}
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: COLORS.bg },
-  container: { flex: 1 },
-});
+        {view === 'MENU' && (
+          <MenuScreen 
+            onPlay={handlePlay} 
+            onShowLeaderboard={handleShowLeaderboard}
+            selectedSong={selectedSong} 
+            setSelectedSong={setSelectedSong}
+          />
+        )}
+
+        {view === 'LEADERBOARD' && (
+          <LeaderboardScreen onBack={() => setView('MENU')} />
+        )}
+
+        {view === 'GAME' && (
+          <GameScreen 
+            song={selectedSong} 
+            onExit={handleExitGame} 
+            onFinish={handleGameFinish}
+            isDemo={isDemoMode}
+          />
+        )}
+
+        {view === 'RESULTS' && lastResults && (
+          <ResultsScreen 
+            results={lastResults} 
+            song={selectedSong}
+            onRetry={() => handlePlay(selectedSong, isDemoMode)}
+            onMainMenu={handleExitGame}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default App;

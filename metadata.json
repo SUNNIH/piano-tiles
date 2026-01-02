@@ -1,7 +1,5 @@
 {
-  "requestFramePermissions": [
-    "microphone"
-  ],
-  "name": "",
-  "description": ""
+  "name": "AfroPI@NO",
+  "description": "A high-performance rhythmic simulation game featuring curated Afro-beats and tribal rhythms with a cutting-edge visual engine.",
+  "requestFramePermissions": []
 }

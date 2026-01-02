@@ -1,166 +1,188 @@
 
-import { Audio } from 'expo-av';
-
 class AudioService {
-  private sound: Audio.Sound | null = null;
-  private audioContext: any = null;
-  private sourceNode: any = null;
+  private context: AudioContext | null = null;
+  private source: AudioBufferSourceNode | null = null;
+  private analyser: AnalyserNode | null = null;
+  private playbackStartTime: number = 0;
 
-  constructor() {
-    // Initialize AudioContext if in a browser environment to support Web components
-    if (typeof window !== 'undefined') {
-      const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-      if (AudioContextClass) {
-        this.audioContext = new AudioContextClass();
-      }
+  private getContext(): AudioContext {
+    if (!this.context) {
+      this.context = new (window.AudioContext || (window as any).webkitAudioContext)();
+      this.analyser = this.context.createAnalyser();
+      this.analyser.fftSize = 256;
     }
+    return this.context;
   }
 
-  /**
-   * Initializes audio mode for mobile (Native/Expo)
-   */
-  async init() {
-    if (Audio && typeof Audio.setAudioModeAsync === 'function') {
-      try {
-        await Audio.setAudioModeAsync({
-          playsInSilentModeIOS: true,
-          staysActiveInBackground: false,
-          shouldRouteThroughEarpieceAndroid: false,
-        });
-      } catch (e) {
-        console.warn('Failed to set audio mode', e);
-      }
-    }
-  }
-
-  /**
-   * Loads audio from a URI. Returns an AudioBuffer for Web usage or null for Native.
-   */
-  async loadAudio(uri: string): Promise<any> {
-    if (this.audioContext) {
-      try {
-        const response = await fetch(uri);
-        const arrayBuffer = await response.arrayBuffer();
-        return await this.audioContext.decodeAudioData(arrayBuffer);
-      } catch (e) {
-        console.error('Failed to load web audio', e);
-        return null;
-      }
-    }
-
-    if (this.sound) {
-      await this.sound.unloadAsync();
-    }
-    const { sound } = await Audio.Sound.createAsync(
-      { uri },
-      { shouldPlay: false, volume: 1.0 }
-    );
-    this.sound = sound;
-    return null;
-  }
-
-  /**
-   * Loads audio from a local File object (Web specific)
-   */
-  async loadAudioFromFile(file: any): Promise<any> {
-    if (!this.audioContext) {
-      throw new Error('AudioContext not available for file loading');
-    }
-    const arrayBuffer = await file.arrayBuffer();
-    return await this.audioContext.decodeAudioData(arrayBuffer);
-  }
-
-  /**
-   * Generates tiles based on audio duration or peaks.
-   * Handles both numeric duration and AudioBuffer input.
-   */
-  analyzeAudioPeaks(input: any, bpm: number = 120): any[] {
-    let durationMs = 0;
-    
-    // Check if input is an AudioBuffer or similar object with a duration property
-    if (input && typeof input.duration === 'number') {
-      durationMs = input.duration * 1000;
-    } else if (typeof input === 'number') {
-      durationMs = input;
-    }
-
-    const peaks = [];
-    const interval = (60 / bpm) * 1000;
-    for (let time = 0; time < durationMs; time += interval) {
-      peaks.push({
-        time: time / 1000,
-        lane: Math.floor(Math.random() * 4),
-        isLong: Math.random() > 0.8
-      });
-    }
-    return peaks;
-  }
-
-  /**
-   * Resumes the audio context (required by modern browsers)
-   */
   async resume() {
-    if (this.audioContext && this.audioContext.state === 'suspended') {
-      await this.audioContext.resume();
-    }
+    const ctx = this.getContext();
+    if (ctx.state === 'suspended') await ctx.resume();
   }
 
-  /**
-   * Plays audio from a buffer (Web) or uses URI/Native sound object.
-   */
-  async playBuffer(bufferOrUri: any, delayMs: number = 0) {
-    // Handle Web Audio API playback
-    if (this.audioContext && bufferOrUri && typeof bufferOrUri !== 'string') {
-      this.stop(); // Stop previous instance
-      
-      this.sourceNode = this.audioContext.createBufferSource();
-      this.sourceNode.buffer = bufferOrUri;
-      this.sourceNode.connect(this.audioContext.destination);
-      
-      setTimeout(() => {
-        if (this.sourceNode) {
-          this.sourceNode.start();
-        }
-      }, delayMs);
-      return;
-    }
-
-    // Handle Native/Legacy playback
-    if (this.sound) {
-      setTimeout(async () => {
-        await this.sound?.playAsync();
-      }, delayMs);
-    }
+  getAnalyser(): AnalyserNode | null {
+    this.getContext(); // Ensure initialization
+    return this.analyser;
   }
 
-  /**
-   * Stops all active audio playback
-   */
-  async stop(): Promise<void> {
-    if (this.sourceNode) {
-      try {
-        this.sourceNode.stop();
-      } catch (e) {
-        // Handle stop before start or double stop
+  async loadAudio(url: string): Promise<AudioBuffer> {
+    const ctx = this.getContext();
+    const response = await fetch(url);
+    const arrayBuffer = await response.arrayBuffer();
+    return await ctx.decodeAudioData(arrayBuffer);
+  }
+
+  async loadAudioFromFile(file: File): Promise<AudioBuffer> {
+    const ctx = this.getContext();
+    const arrayBuffer = await file.arrayBuffer();
+    return await ctx.decodeAudioData(arrayBuffer);
+  }
+
+  playBuffer(buffer: AudioBuffer, delay: number = 0) {
+    this.stop();
+    const ctx = this.getContext();
+    this.source = ctx.createBufferSource();
+    this.source.buffer = buffer;
+    
+    // Connect source -> analyser -> destination
+    this.source.connect(this.analyser!);
+    this.analyser!.connect(ctx.destination);
+    
+    // Track exactly when the audio will start playing in the context's timeline
+    this.playbackStartTime = ctx.currentTime + delay;
+    this.source.start(this.playbackStartTime);
+  }
+
+  stop() {
+    if (this.source) {
+      try { this.source.stop(); } catch (e) {}
+      this.source.disconnect();
+      this.source = null;
+    }
+    this.playbackStartTime = 0;
+  }
+
+  getCurrentTime(): number {
+    if (!this.context || this.playbackStartTime === 0) return 0;
+    // High precision time relative to song start
+    const time = this.context.currentTime - this.playbackStartTime;
+    return Math.max(0, time);
+  }
+
+  generateMidiFromBpm(melody: string[], bpm: number): {time: number, note: string, isLong?: boolean, lane?: number}[] {
+    const beatDuration = 60 / bpm;
+    const finalMidi: {time: number, note: string, isLong?: boolean, lane?: number}[] = [];
+    const laneLastUsed = [0, 0, 0, 0];
+    
+    melody.forEach((note, index) => {
+      const time = index * beatDuration;
+      // Filter density for high BPM
+      if (bpm > 140 && index % 2 !== 0) return;
+
+      const energyLevel = Math.random();
+      // REDUCED SIDE-BY-SIDE: Increased threshold from 0.92 to 0.98 to make double notes extremely rare
+      let polyphony = energyLevel > 0.98 ? 2 : 1;
+      
+      const lanes = [0, 1, 2, 3].sort((a, b) => laneLastUsed[a] - laneLastUsed[b]);
+      
+      for (let i = 0; i < polyphony; i++) {
+        const lane = lanes[i];
+        finalMidi.push({
+          time,
+          note,
+          isLong: Math.random() > 0.97, // Even rarer long notes
+          lane
+        });
+        laneLastUsed[lane] = index;
       }
-      this.sourceNode = null;
-    }
-    if (this.sound) {
-      try {
-        await this.sound.stopAsync();
-      } catch (e) {}
-    }
+    });
+
+    return finalMidi;
   }
 
   /**
-   * Unloads resources
+   * Onset Detection Engine (Energy Flux)
+   * Refined to prevent "too many tiles" by capping polyphony and adjusting sensitivity.
    */
-  async unload() {
-    await this.stop();
-    if (this.sound) {
-      await this.sound.unloadAsync();
-      this.sound = null;
+  analyzeAudioPeaks(buffer: AudioBuffer, baseSpeed: number): {time: number, note: string, isLong?: boolean, lane?: number}[] {
+    const rawData = buffer.getChannelData(0);
+    const sampleRate = buffer.sampleRate;
+    const windowSize = 1024; 
+    const hopSize = 512;
+    
+    const energyFlux: { flux: number, time: number, rms: number }[] = [];
+    let prevRMS = 0;
+
+    // Pass 1: Calculate Energy Flux
+    for (let i = 0; i < rawData.length - windowSize; i += hopSize) {
+      let sumSq = 0;
+      for (let j = 0; j < windowSize; j++) {
+        const s = rawData[i + j];
+        sumSq += s * s;
+      }
+      const rms = Math.sqrt(sumSq / windowSize);
+      const flux = Math.max(0, rms - prevRMS);
+      
+      energyFlux.push({ flux, rms, time: i / sampleRate });
+      prevRMS = rms;
     }
+
+    // Pass 2: Peak Picking
+    const finalNotes: {time: number, note: string, isLong?: boolean, lane?: number}[] = [];
+    const minTimeGap = 0.35; // Increased slightly to prevent temporal clumping
+    const laneEndTimes: number[] = [0, 0, 0, 0];
+    const laneLastUsedLocal = [0, 0, 0, 0];
+    let lastNoteTime = -minTimeGap;
+
+    const avgWindow = 20; // Larger window for more stable local average
+
+    for (let i = avgWindow; i < energyFlux.length - 1; i++) {
+      const curr = energyFlux[i];
+      
+      let localSum = 0;
+      for(let k = -avgWindow; k < 0; k++) localSum += energyFlux[i+k].flux;
+      const localAvg = localSum / avgWindow;
+      
+      const isPeak = curr.flux > energyFlux[i-1].flux && curr.flux > energyFlux[i+1].flux;
+      // Stricter significance threshold to reduce clutter
+      const isSignificant = curr.flux > localAvg * 1.8 && curr.flux > 0.025;
+
+      if (isPeak && isSignificant) {
+        if (curr.time - lastNoteTime > minTimeGap) {
+          // REDUCED SIDE-BY-SIDE: Stricter threshold for polyphony (increased from 0.07 to 0.13)
+          let polyphony = 1;
+          if (curr.flux > 0.13) polyphony = 2; 
+
+          // Detect "Long" notes
+          let sustainSum = 0;
+          const lookahead = 10;
+          for(let k=1; k<=lookahead && (i+k) < energyFlux.length; k++) sustainSum += energyFlux[i+k].rms;
+          const isLong = (sustainSum / lookahead) > (curr.rms * 0.9);
+
+          const availableLanes = [0, 1, 2, 3]
+            .filter(lane => curr.time >= laneEndTimes[lane])
+            .sort((a, b) => laneLastUsedLocal[a] - laneLastUsedLocal[b]);
+
+          const actualTriggers = Math.min(polyphony, availableLanes.length);
+          const duration = isLong ? (0.5 / baseSpeed) : (0.25 / baseSpeed);
+
+          for (let p = 0; p < actualTriggers; p++) {
+            const lane = availableLanes[p];
+            finalNotes.push({
+              time: curr.time,
+              note: 'BEAT',
+              isLong,
+              lane
+            });
+            laneEndTimes[lane] = curr.time + duration;
+            laneLastUsedLocal[lane] = i;
+          }
+          
+          lastNoteTime = curr.time;
+        }
+      }
+    }
+
+    return finalNotes.sort((a, b) => a.time - b.time);
   }
 }
 

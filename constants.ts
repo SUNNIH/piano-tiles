@@ -1,21 +1,28 @@
-import { Song } from './types';
+
+import { Song, GameRank } from './types';
 
 export const COLORS = {
-  bg: '#120a06',
-  primary: '#eebb55',
-  primaryDark: '#c79a30',
-  secondary: '#3d2b23',
-  text: '#f2e8e4',
-  accent: '#ff5555',
-  laneBorder: 'rgba(255, 255, 255, 0.1)',
-  laneLine: '#ffffff20',
-  tileGradientStart: '#444',
-  tileGradientEnd: '#111',
-  tileActive: '#666',
-  tileHit: '#4caf50',
-  tileSpecial: '#ffd700',
-  tileNormal: '#444444'
+  bg: '#0a0a0c',
+  card: 'rgba(25, 25, 30, 0.8)',
+  glass: 'rgba(255, 255, 255, 0.05)',
+  glassBorder: 'rgba(255, 255, 255, 0.1)',
+  primary: '#00f2ff', // Neon Cyan
+  primaryGlow: 'rgba(0, 242, 255, 0.5)',
+  secondary: '#7000ff', // Electric Purple
+  accent: '#ff0055', // Hot Pink
+  success: '#00ff88', // Emerald Neon
+  text: '#ffffff',
+  textMuted: 'rgba(255, 255, 255, 0.5)',
+  laneBorder: 'rgba(255, 255, 255, 0.05)',
+  laneLine: 'rgba(255, 255, 255, 0.1)',
 };
+
+export const RANK_THRESHOLDS: { rank: GameRank; minAccuracy: number }[] = [
+  { rank: 'S', minAccuracy: 98 },
+  { rank: 'A', minAccuracy: 90 },
+  { rank: 'B', minAccuracy: 80 },
+  { rank: 'C', minAccuracy: 0 },
+];
 
 export const SONGS: Song[] = [
   { 
@@ -25,7 +32,6 @@ export const SONGS: Song[] = [
     bpm: 75, 
     difficulty: 'Easy',
     baseSpeed: 0.4,
-    // Repeating the main theme for a longer gameplay experience
     melody: [
         'D', 'A', 'B', 'F#', 'G', 'D', 'G', 'A',
         'D', 'A', 'B', 'F#', 'G', 'D', 'G', 'A',
@@ -63,7 +69,7 @@ export const SONGS: Song[] = [
     id: '3', 
     title: 'Moonlight Sonata', 
     artist: 'Beethoven', 
-    bpm: 130, // Slightly accelerated for gameplay
+    bpm: 130, 
     difficulty: 'Hard',
     baseSpeed: 0.7,
     melody: [

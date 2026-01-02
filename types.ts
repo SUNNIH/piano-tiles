@@ -1,11 +1,22 @@
 
-export type ViewState = 'INTRO' | 'MENU' | 'GAME' | 'GITHUB';
+export type ViewState = 'INTRO' | 'LOADING' | 'MENU' | 'GAME' | 'RESULTS' | 'LEADERBOARD';
 
 export enum GameStatus {
   IDLE = 'IDLE',
   PLAYING = 'PLAYING',
+  PAUSED = 'PAUSED',
   GAME_OVER = 'GAME_OVER',
   WON = 'WON'
+}
+
+export type GameRank = 'S' | 'A' | 'B' | 'C';
+
+export interface GameResults {
+  score: number;
+  maxCombo: number;
+  accuracy: number;
+  rank: GameRank;
+  isNewHighScore: boolean;
 }
 
 export interface Song {
@@ -34,20 +45,20 @@ export interface Tile {
   isHeld: boolean;
 }
 
-export interface GitHubUser {
-  login: string;
-  avatar_url: string;
-  name: string;
-  public_repos: number;
+export interface LeaderboardEntry {
+  songId: string;
+  songTitle: string;
+  score: number;
+  accuracy: number;
+  rank: GameRank;
+  date: string;
 }
 
-export interface GitHubRepo {
-  id: number;
-  name: string;
-  full_name: string;
-  description: string;
-  html_url: string;
-  private: boolean;
+export enum CppFramework {
+  SFML = 'SFML',
+  SDL2 = 'SDL2',
+  RAYLIB = 'Raylib',
+  OPENGL = 'Modern OpenGL'
 }
 
 export interface GeneratedCode {
