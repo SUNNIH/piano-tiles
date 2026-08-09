@@ -3,48 +3,103 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0a0a0c">
     <title>AfroPI@NO</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #0f172a; /* Slate 900 */
-        color: #e2e8f0; /* Slate 200 */
+        background-color: #0a0a0c;
+        color: #ffffff;
+        margin: 0;
+        padding: 0;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        overflow: hidden;
       }
-      code, pre {
-        font-family: 'JetBrains Mono', monospace;
+      /* Prevent scrolling on touch */
+      * {
+        touch-action: none;
       }
-      /* Custom Scrollbar for code blocks */
-      ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+
+      /* Google Sign-in Official Button Styles */
+      .gsi-material-button {
+        -moz-user-select: none;
+        -webkit-user-select: none;
+        -ms-user-select: none;
+        -webkit-appearance: none;
+        background-color: #131314;
+        background-image: none;
+        border: 1px solid #8e918f;
+        -webkit-border-radius: 20px;
+        border-radius: 20px;
+        -webkit-box-sizing: border-box;
+        box-sizing: border-box;
+        color: #e3e3e3;
+        cursor: pointer;
+        font-family: 'Roboto', arial, sans-serif;
+        font-size: 14px;
+        height: 44px;
+        letter-spacing: 0.25px;
+        outline: none;
+        overflow: hidden;
+        padding: 0 16px;
+        position: relative;
+        text-align: center;
+        -webkit-transition: background-color .218s, border-color .218s, box-shadow .218s;
+        transition: background-color .218s, border-color .218s, box-shadow .218s;
+        vertical-align: middle;
+        white-space: nowrap;
+        width: auto;
+        max-width: 400px;
+        min-width: min-content;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
       }
-      ::-webkit-scrollbar-track {
-        background: #1e293b; 
+      .gsi-material-button:hover {
+        -webkit-box-shadow: 0 1px 2px 0 rgba(60, 64, 67, .30), 0 1px 3px 1px rgba(60, 64, 67, .15);
+        box-shadow: 0 1px 2px 0 rgba(60, 64, 67, .30), 0 1px 3px 1px rgba(60, 64, 67, .15);
+        background-color: #1f1f20;
+        border-color: #a8aba9;
       }
-      ::-webkit-scrollbar-thumb {
-        background: #475569; 
-        border-radius: 4px;
+      .gsi-material-button-content-wrapper {
+        -webkit-align-items: center;
+        align-items: center;
+        display: flex;
+        -webkit-flex-direction: row;
+        flex-direction: row;
+        -webkit-flex-wrap: nowrap;
+        flex-wrap: nowrap;
+        height: 100%;
+        justify-content: space-between;
+        position: relative;
+        width: 100%;
       }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #64748b; 
+      .gsi-material-button-icon {
+        height: 20px;
+        margin-right: 12px;
+        min-width: 20px;
+        width: 20px;
+      }
+      .gsi-material-button-contents {
+        -webkit-flex-grow: 1;
+        flex-grow: 1;
+        font-family: 'Google Sans', arial, sans-serif;
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: top;
       }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.1/",
-    "react": "https://aistudiocdn.com/react@^19.2.1",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/"
-  }
-}
-</script>
-</head>
+  </head>
   <body>
     <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>

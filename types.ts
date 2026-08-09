@@ -1,5 +1,5 @@
 
-export type ViewState = 'INTRO' | 'LOADING' | 'MENU' | 'GAME' | 'RESULTS' | 'LEADERBOARD';
+export type ViewState = 'INTRO' | 'LOADING' | 'MENU' | 'GAME' | 'RESULTS' | 'LEADERBOARD' | 'CPP_FORGE' | 'LIBRARY';
 
 export enum GameStatus {
   IDLE = 'IDLE',
@@ -24,13 +24,34 @@ export interface Song {
   title: string;
   artist: string;
   bpm: number;
-  difficulty: 'Easy' | 'Medium' | 'Hard' | 'Expert';
+  difficulty: 'Easy' | 'Medium' | 'Hard' | 'Expert' | 'Custom';
   baseSpeed: number;
   melody: string[];
   audioSrc?: string; 
   midiSrc?: string;
   midiData?: {time: number, note: string, isLong?: boolean, lane?: number}[];
   file?: File;
+  storagePath?: string; // Native storage reference
+  isGoogleDrive?: boolean;
+  driveFileId?: string;
+  mimeType?: string;
+  audioBuffer?: AudioBuffer;
+}
+
+export interface DriveFileItem {
+  id: string;
+  name: string;
+  mimeType: string;
+  sizeBytes?: number;
+  iconUrl?: string;
+  thumbnailUrl?: string;
+}
+
+export interface LibraryFolder {
+  id: string;
+  name: string;
+  path: string;
+  songCount: number;
 }
 
 export interface Tile {
@@ -43,6 +64,7 @@ export interface Tile {
   targetHitTime?: number;
   isLong: boolean;
   isHeld: boolean;
+  note?: string;
 }
 
 export interface LeaderboardEntry {
@@ -63,6 +85,7 @@ export enum CppFramework {
 
 export interface GeneratedCode {
   code: string;
+  cmake: string;
   explanation: string;
 }
 

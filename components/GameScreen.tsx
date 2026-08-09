@@ -1,10 +1,9 @@
 
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { GameStatus, Song, Tile, GameResults, GameRank } from '../types';
 import { audioService } from '../services/audioService';
-import { RotateCcw, Home, Loader2, Bot, Zap, X, Pause, Play } from 'lucide-react';
-import { COLORS, RANK_THRESHOLDS } from '../constants';
-import Visualizer from './Visualizer';
+import { RotateCcw, Home, Loader2, Bot, Zap, Pause, Play } from 'lucide-react';
+import { RANK_THRESHOLDS } from '../constants';
 
 interface GameScreenProps {
   song: Song;
@@ -54,26 +53,23 @@ const THEME_COLORS = [
 const GameScreen: React.FC<GameScreenProps> = ({ song, onExit, onFinish, isDemo = false }) => {
   const [status, setStatus] = useState<GameStatus>(GameStatus.IDLE);
   const [isLoading, setIsLoading] = useState(false);
-  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [isAutoPlay, setIsAutoPlay] = useState(isDemo);
   const [audioBuffer, setAudioBuffer] = useState<AudioBuffer | null>(null);
   
-  // Dynamic Theme State
-  const [themeIndex, setThemeIndex] = useState(0);
-  const [showAwesome, setShowAwesome] = useState(false);
-  const [awesomeText, setAwesomeText] = useState('AWESOME');
-
-  const currentTheme = useMemo(() => THEME_COLORS[themeIndex], [themeIndex]);
-
   const scoreElRef = useRef<HTMLSpanElement>(null);
   const comboElRef = useRef<HTMLDivElement>(null);
   const accuracyElRef = useRef<HTMLSpanElement>(null);
   const rankElRef = useRef<HTMLSpanElement>(null);
 
+  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number | undefined>(undefined);
+  
+  // Game State Refs (Performance)
   const tilesRef = useRef<TimeSyncTile[]>([]);
-  const activeLanesRef = useRef<Set<number>>(new Set());
+  const feedbacksRef = useRef<Feedback[]>([]);
+  const hitEffectsRef = useRef<HitEffect[]>([]);
+  const touchRipplesRef = useRef<TouchRipple[]>([]);
   const scoreRef = useRef(0);
   const comboRef = useRef(0);
   const maxComboRef = useRef(0);
@@ -81,9 +77,10 @@ const GameScreen: React.FC<GameScreenProps> = ({ song, onExit, onFinish, isDemo 
   const hitNotesRef = useRef(0);
   const melodyIndexRef = useRef(0);
   const midiDataRef = useRef<{time: number, note: string, isLong?: boolean, lane?: number}[]>([]);
-  const hitEffectsRef = useRef<HitEffect[]>([]);
-  const touchRipplesRef = useRef<TouchRipple[]>([]);
   const isPausedRef = useRef(false);
+  const themeIndexRef = useRef(0);
+  const awesomeTextRef = useRef<string | null>(null);
+  const awesomeStartTimeRef = useRef(0);
 
   const playStartTimeRef = useRef<number>(0);
   const lastPhaseIndexRef = useRef<number>(0);
@@ -111,7 +108,11 @@ const GameScreen: React.FC<GameScreenProps> = ({ song, onExit, onFinish, isDemo 
       comboElRef.current.style.display = comboRef.current > 0 ? 'block' : 'none';
     }
     if (accuracyElRef.current) accuracyElRef.current.innerText = `Accuracy ${acc.toFixed(1)}%`;
-    if (rankElRef.current) rankElRef.current.innerText = calculateRank(acc);
+    if (rankElRef.current) {
+      const rank = calculateRank(acc);
+      rankElRef.current.innerText = rank;
+      rankElRef.current.style.color = THEME_COLORS[themeIndexRef.current].hex;
+    }
   }, []);
 
   const handleFinish = useCallback(() => {
@@ -141,10 +142,31 @@ const GameScreen: React.FC<GameScreenProps> = ({ song, onExit, onFinish, isDemo 
   const draw = useCallback((ctx: CanvasRenderingContext2D, width: number, height: number) => {
     const currentAudioTime = audioService.getCurrentTime();
     const now = Date.now();
+    const currentTheme = THEME_COLORS[themeIndexRef.current];
 
     ctx.clearRect(0, 0, width, height);
 
-    // 1. Ripples
+    // 1. Visualizer Background
+    const analyser = audioService.getAnalyser();
+    if (analyser) {
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        analyser.getByteFrequencyData(dataArray);
+        
+        ctx.save();
+        ctx.globalAlpha = 0.15;
+        const barWidth = (width / bufferLength) * 2.5;
+        let x = 0;
+        for (let i = 0; i < bufferLength; i++) {
+            const barHeight = (dataArray[i] / 255) * (height * 0.2);
+            ctx.fillStyle = currentTheme.hex;
+            ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+            x += barWidth + 1;
+        }
+        ctx.restore();
+    }
+
+    // 2. Ripples
     if (touchRipplesRef.current.length > 0) {
       ctx.lineWidth = 3;
       touchRipplesRef.current.forEach(ripple => {
@@ -160,7 +182,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ song, onExit, onFinish, isDemo 
       touchRipplesRef.current = touchRipplesRef.current.filter(r => now - r.startTime < 400);
     }
 
-    // 2. Hit Effects
+    // 3. Hit Effects
     hitEffectsRef.current.forEach(effect => {
         const elapsed = now - effect.startTime;
         const duration = effect.type === 'PERFECT' ? 600 : 400;
@@ -189,13 +211,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ song, onExit, onFinish, isDemo 
                 ctx.lineWidth = 6 * (1 - progress);
                 ctx.stroke();
 
-                const fastProgress = Math.min(1, progress * 1.5);
-                ctx.beginPath();
-                ctx.arc(0, 0, fastProgress * 100, 0, Math.PI * 2);
-                ctx.strokeStyle = `rgba(255, 255, 255, ${Math.max(0, 1 - fastProgress)})`;
-                ctx.lineWidth = 2;
-                ctx.stroke();
-
                 const glowSize = (1 - progress) * 60;
                 const radialGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, glowSize);
                 radialGrad.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
@@ -217,7 +232,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ song, onExit, onFinish, isDemo 
         }
     });
 
-    // 3. Tiles
+    // 4. Tiles
     const laneWidth = width / 4;
     const tileMargin = width * 0.015;
     const tileWidth = laneWidth - tileMargin * 2;
@@ -274,8 +289,54 @@ const GameScreen: React.FC<GameScreenProps> = ({ song, onExit, onFinish, isDemo 
         ctx.restore();
     });
 
+    // 5. Feedbacks
+    feedbacksRef.current.forEach(fb => {
+        const elapsed = now - fb.timestamp;
+        const progress = elapsed / 600;
+        if (progress < 1) {
+            ctx.save();
+            ctx.globalAlpha = 1 - progress;
+            ctx.fillStyle = fb.color;
+            ctx.font = 'italic 900 24px Inter';
+            ctx.textAlign = 'center';
+            const fbX = (fb.lane * laneWidth) + (laneWidth / 2);
+            const fbY = (OPTIMAL_HIT_Y_FRAC - 0.1 - progress * 0.1) * height;
+            ctx.fillText(fb.text, fbX, fbY);
+            ctx.restore();
+        }
+    });
+    feedbacksRef.current = feedbacksRef.current.filter(fb => now - fb.timestamp < 600);
+
+    // 6. Awesome Text
+    if (awesomeTextRef.current) {
+        const elapsed = now - awesomeStartTimeRef.current;
+        const progress = elapsed / 1200;
+        if (progress < 1) {
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = 'italic 900 48px Inter';
+            ctx.fillStyle = currentTheme.hex;
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = currentTheme.hex;
+            
+            let alpha = 1;
+            if (progress < 0.15) alpha = progress / 0.15;
+            else if (progress > 0.85) alpha = 1 - (progress - 0.85) / 0.15;
+            
+            ctx.globalAlpha = alpha;
+            const scale = 1 + (progress - 0.5) * 0.2;
+            ctx.translate(width / 2, height / 2);
+            ctx.scale(scale, scale);
+            ctx.fillText(awesomeTextRef.current, 0, 0);
+            ctx.restore();
+        } else {
+            awesomeTextRef.current = null;
+        }
+    }
+
     hitEffectsRef.current = hitEffectsRef.current.filter(e => now - e.startTime < 1000);
-  }, [song.baseSpeed, currentTheme]);
+  }, [song.baseSpeed]);
 
   const animate = useCallback(() => {
     if (status !== GameStatus.PLAYING || isPausedRef.current || !canvasRef.current) return;
@@ -291,10 +352,9 @@ const GameScreen: React.FC<GameScreenProps> = ({ song, onExit, onFinish, isDemo 
     const currentPhaseIndex = Math.floor(elapsed / 20000) % THEME_COLORS.length;
     if (currentPhaseIndex !== lastPhaseIndexRef.current) {
         lastPhaseIndexRef.current = currentPhaseIndex;
-        setThemeIndex(currentPhaseIndex);
-        setAwesomeText(THEME_COLORS[currentPhaseIndex].label);
-        setShowAwesome(true);
-        setTimeout(() => setShowAwesome(false), 1200);
+        themeIndexRef.current = currentPhaseIndex;
+        awesomeTextRef.current = THEME_COLORS[currentPhaseIndex].label;
+        awesomeStartTimeRef.current = now;
     }
     
     // Victory check
@@ -318,7 +378,8 @@ const GameScreen: React.FC<GameScreenProps> = ({ song, onExit, onFinish, isDemo 
                 isHeld: false,
                 isHit: false,
                 timestamp: Date.now(),
-                audioTime: nextNote.time
+                audioTime: nextNote.time,
+                note: nextNote.note
             });
             totalNotesRef.current++;
             melodyIndexRef.current++;
@@ -361,19 +422,19 @@ const GameScreen: React.FC<GameScreenProps> = ({ song, onExit, onFinish, isDemo 
     updateHUD();
     draw(ctx, canvasRef.current.width, canvasRef.current.height);
     requestRef.current = requestAnimationFrame(animate);
-  }, [status, isAutoPlay, song.baseSpeed, draw, handleFinish, updateHUD, themeIndex]);
+  }, [status, isAutoPlay, song.baseSpeed, draw, handleFinish, updateHUD]);
 
   const togglePause = useCallback(() => {
     if (status !== GameStatus.PLAYING && status !== GameStatus.PAUSED) return;
     
     if (isPausedRef.current) {
-      audioService.resume();
+      audioService.resumePlayback();
       isPausedRef.current = false;
       const totalElapsedPriorToPause = nowForPauseRef.current - playStartTimeRef.current;
       playStartTimeRef.current = Date.now() - totalElapsedPriorToPause;
       setStatus(GameStatus.PLAYING);
     } else {
-      audioService.stop();
+      audioService.pause();
       nowForPauseRef.current = Date.now();
       isPausedRef.current = true;
       setStatus(GameStatus.PAUSED);
@@ -389,14 +450,17 @@ const GameScreen: React.FC<GameScreenProps> = ({ song, onExit, onFinish, isDemo 
     hitNotesRef.current = 0;
     melodyIndexRef.current = 0;
     tilesRef.current = [];
+    feedbacksRef.current = [];
+    hitEffectsRef.current = [];
+    touchRipplesRef.current = [];
     isPausedRef.current = false;
     
-    setThemeIndex(0);
+    themeIndexRef.current = 0;
     lastPhaseIndexRef.current = 0;
-    setShowAwesome(false);
+    awesomeTextRef.current = null;
     playStartTimeRef.current = Date.now();
     
-    let buffer = audioBuffer;
+    let buffer = song.audioBuffer || audioBuffer;
     if (!buffer) {
         try {
             if (song.file) buffer = await audioService.loadAudioFromFile(song.file);
@@ -404,28 +468,56 @@ const GameScreen: React.FC<GameScreenProps> = ({ song, onExit, onFinish, isDemo 
             
             if (buffer) {
                 setAudioBuffer(buffer);
-                midiDataRef.current = audioService.analyzeAudioPeaks(buffer, song.baseSpeed);
+                midiDataRef.current = song.midiData || audioService.analyzeAudioPeaks(buffer, song.baseSpeed);
             } else {
-                midiDataRef.current = audioService.generateMidiFromBpm(song.melody, song.bpm);
+                buffer = audioService.generateMelodyBuffer(song.melody, song.bpm);
+                setAudioBuffer(buffer);
+                midiDataRef.current = song.midiData || audioService.generateMidiFromBpm(song.melody, song.bpm);
             }
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error("Audio buffer load error:", e);
+            buffer = audioService.generateMelodyBuffer(song.melody, song.bpm);
+            setAudioBuffer(buffer);
+            midiDataRef.current = song.midiData || audioService.generateMidiFromBpm(song.melody, song.bpm);
+        }
+    } else {
+        setAudioBuffer(buffer);
+        if (midiDataRef.current.length === 0) {
+            midiDataRef.current = song.midiData || (song.melody && song.melody.length > 0 ? audioService.generateMidiFromBpm(song.melody, song.bpm) : audioService.analyzeAudioPeaks(buffer, song.baseSpeed));
+        }
     }
     
     setIsLoading(false);
-    audioService.resume();
-    audioService.playBuffer(buffer!, 1.5);
+    await audioService.resume();
+    audioService.playBuffer(buffer, 1.2);
     setStatus(GameStatus.PLAYING);
   };
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-        const dpr = window.devicePixelRatio || 1;
-        const rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
-    }
-  }, [status]);
+    return () => {
+      audioService.stop();
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const canvas = canvasRef.current;
+      const container = containerRef.current;
+      if (canvas && container) {
+          const dpr = window.devicePixelRatio || 1;
+          const rect = container.getBoundingClientRect();
+          canvas.width = rect.width * dpr;
+          canvas.height = rect.height * dpr;
+      }
+    };
+
+    const observer = new ResizeObserver(handleResize);
+    if (containerRef.current) observer.observe(containerRef.current);
+    
+    handleResize();
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (status === GameStatus.PLAYING) requestRef.current = requestAnimationFrame(animate);
@@ -464,19 +556,21 @@ const GameScreen: React.FC<GameScreenProps> = ({ song, onExit, onFinish, isDemo 
             else if (absError < GREAT_WINDOW) { bonus = 5; text = "GREAT"; type = 'GREAT'; } 
             else if (timeError > PERFECT_WINDOW) { text = "LATE"; } 
             
+            if (target.note && target.note !== 'BEAT') {
+              audioService.playNote(target.note);
+            }
+            audioService.playHitFeedback(type);
+
             scoreRef.current += (bonus * (1 + comboRef.current * 0.1));
             comboRef.current++;
             maxComboRef.current = Math.max(maxComboRef.current, comboRef.current);
 
-            setFeedbacks(prev => {
-                const newF = [...prev, { 
-                  id: Math.random(), 
-                  text, 
-                  lane: laneIndex, 
-                  color: type === 'PERFECT' ? currentTheme.hex : '#fff', 
-                  timestamp: Date.now() 
-                }];
-                return newF.slice(-3);
+            feedbacksRef.current.push({ 
+              id: Math.random(), 
+              text, 
+              lane: laneIndex, 
+              color: type === 'PERFECT' ? THEME_COLORS[themeIndexRef.current].hex : '#fff', 
+              timestamp: Date.now() 
             });
 
             const impactY = (OPTIMAL_HIT_Y_FRAC + 0.02) * height;
@@ -489,8 +583,8 @@ const GameScreen: React.FC<GameScreenProps> = ({ song, onExit, onFinish, isDemo 
               startTime: Date.now(),
               x: laneCenter,
               y: impactY,
-              themeColor: currentTheme.hex,
-              themeRgb: currentTheme.rgb
+              themeColor: THEME_COLORS[themeIndexRef.current].hex,
+              themeRgb: THEME_COLORS[themeIndexRef.current].rgb
             });
         } else {
             comboRef.current = 0;
@@ -508,24 +602,15 @@ const GameScreen: React.FC<GameScreenProps> = ({ song, onExit, onFinish, isDemo 
     const dpr = window.devicePixelRatio || 1;
     const touchX = (e.clientX - rect.left) * dpr;
     const touchY = (e.clientY - rect.top) * dpr;
-    activeLanesRef.current.add(laneIndex);
     handleLaneTouch(laneIndex, false, touchX, touchY);
   };
 
   return (
-    <div className={`relative w-full h-full overflow-hidden select-none touch-none bg-black transition-colors duration-[1000ms]`}>
+    <div ref={containerRef} className={`relative w-full h-full overflow-hidden select-none touch-none bg-black transition-colors duration-[1000ms]`}>
       <div 
         className="absolute inset-0 opacity-20 pointer-events-none transition-all duration-1000" 
-        style={{ background: `radial-gradient(circle at 50% 100%, ${currentTheme.hex}66 0%, transparent 70%)` }} 
+        style={{ background: `radial-gradient(circle at 50% 100%, ${THEME_COLORS[themeIndexRef.current].hex}66 0%, transparent 70%)` }} 
       />
-
-      <div className="absolute inset-x-0 bottom-0 h-24 z-0 pointer-events-none opacity-40">
-        <Visualizer 
-          analyser={audioService.getAnalyser()} 
-          isPlaying={status === GameStatus.PLAYING && !isPausedRef.current} 
-          color={currentTheme.hex} 
-        />
-      </div>
 
       <div className="absolute inset-0 flex pointer-events-none opacity-20">
         {[0, 1, 2, 3].map(i => (
@@ -537,8 +622,8 @@ const GameScreen: React.FC<GameScreenProps> = ({ song, onExit, onFinish, isDemo 
         className="absolute w-full h-[4px] z-20 pointer-events-none transition-all duration-1000" 
         style={{ 
           top: `${OPTIMAL_HIT_Y_FRAC * 100}%`, 
-          backgroundColor: currentTheme.hex, 
-          boxShadow: `0 0 25px ${currentTheme.hex}` 
+          backgroundColor: THEME_COLORS[themeIndexRef.current].hex, 
+          boxShadow: `0 0 25px ${THEME_COLORS[themeIndexRef.current].hex}` 
         }} 
       />
       <div 
@@ -553,11 +638,11 @@ const GameScreen: React.FC<GameScreenProps> = ({ song, onExit, onFinish, isDemo 
       <div className="absolute inset-x-0 top-0 p-10 pt-16 flex justify-between items-start z-40 pointer-events-none">
         <div className="space-y-1">
             <div className="flex items-end gap-3">
-                <span ref={scoreElRef} className="text-8xl font-black italic tracking-tighter text-white tabular-nums drop-shadow-2xl leading-none">0</span>
-                <span ref={rankElRef} className="text-xl font-bold transition-colors duration-1000 mb-3 uppercase tracking-widest" style={{ color: currentTheme.hex }}>S</span>
+                <span ref={scoreElRef} className="text-5xl font-black italic tracking-tighter text-white tabular-nums drop-shadow-2xl leading-none">0</span>
+                <span ref={rankElRef} className="text-xl font-bold transition-colors duration-1000 mb-2 uppercase tracking-widest">S</span>
             </div>
             <div className="flex items-center gap-3 mt-4">
-                <div className="h-2 w-2 rounded-full transition-colors duration-1000" style={{ backgroundColor: currentTheme.hex, boxShadow: `0 0 10px ${currentTheme.hex}` }} />
+                <div className="h-2 w-2 rounded-full transition-colors duration-1000" style={{ backgroundColor: THEME_COLORS[themeIndexRef.current].hex, boxShadow: `0 0 10px ${THEME_COLORS[themeIndexRef.current].hex}` }} />
                 <span ref={accuracyElRef} className="text-[11px] font-bold text-white/30 uppercase tracking-[0.4em]">Accuracy 100.0%</span>
             </div>
         </div>
@@ -567,7 +652,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ song, onExit, onFinish, isDemo 
                 <button 
                   onClick={() => setIsAutoPlay(!isAutoPlay)}
                   className={`p-5 rounded-3xl border transition-all duration-500 ${isAutoPlay ? 'bg-white text-black border-white shadow-xl' : 'bg-white/5 text-white/30 border-white/10'}`}
-                  style={isAutoPlay ? { backgroundColor: currentTheme.hex, borderColor: currentTheme.hex } : {}}
+                  style={isAutoPlay ? { backgroundColor: THEME_COLORS[themeIndexRef.current].hex, borderColor: THEME_COLORS[themeIndexRef.current].hex } : {}}
                 >
                   <Bot size={28} />
                 </button>
@@ -580,16 +665,10 @@ const GameScreen: React.FC<GameScreenProps> = ({ song, onExit, onFinish, isDemo 
             </div>
             <div className="text-right">
                 <div className="text-[11px] font-black uppercase tracking-[0.4em] text-white/20 mb-1">Combo</div>
-                <div ref={comboElRef} className="text-5xl font-black italic tracking-tighter text-white animate-bounce leading-none">0</div>
+                <div ref={comboElRef} className="text-5xl font-black italic tracking-tighter text-white leading-none">0</div>
             </div>
         </div>
       </div>
-
-      {showAwesome && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <h1 className="text-5xl font-black italic tracking-tighter transition-all duration-1000 animate-awesome" style={{ color: currentTheme.hex, textShadow: `0 0 50px ${currentTheme.hex}CC` }}>{awesomeText}</h1>
-        </div>
-      )}
 
       <div className="absolute inset-0 flex z-30">
         {[0, 1, 2, 3].map(i => (
@@ -597,20 +676,9 @@ const GameScreen: React.FC<GameScreenProps> = ({ song, onExit, onFinish, isDemo 
                 key={i} 
                 className="flex-1 active:bg-white/[0.05] transition-colors" 
                 onPointerDown={(e) => onTouchStart(e, i)} 
-                onPointerUp={(e) => { e.preventDefault(); activeLanesRef.current.delete(i); }} 
             />
         ))}
       </div>
-
-      {feedbacks.map(fb => (
-          <div key={fb.id} className="absolute z-50 pointer-events-none flex justify-center w-[25%] font-black text-lg italic tracking-tighter text-center uppercase" style={{ 
-              left: `${fb.lane * 25}%`, 
-              top: `${(OPTIMAL_HIT_Y_FRAC - 0.15) * 100}%`, 
-              color: fb.color, 
-              animation: 'hitAnimation 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards',
-              textShadow: '0 0 30px rgba(0,0,0,1)'
-          }}>{fb.text}</div>
-      ))}
 
       {status === GameStatus.IDLE && (
         <div className="absolute inset-0 z-[60] flex flex-col items-center justify-center bg-black/95 backdrop-blur-3xl animate-in fade-in duration-500">
@@ -644,7 +712,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ song, onExit, onFinish, isDemo 
               <button 
                 onClick={togglePause}
                 className="w-full py-8 text-black font-black rounded-[2.5rem] text-2xl flex items-center justify-center gap-4 active:scale-95 transition-all duration-1000"
-                style={{ backgroundColor: currentTheme.hex }}
+                style={{ backgroundColor: THEME_COLORS[themeIndexRef.current].hex }}
               >
                 <Play size={32} fill="black" /> RESUME
               </button>
@@ -657,23 +725,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ song, onExit, onFinish, isDemo 
            </div>
         </div>
       )}
-
-      <style>{`
-        @keyframes hitAnimation { 
-            0% { opacity: 0; transform: translateY(0) scale(0.6); filter: blur(10px); } 
-            20% { opacity: 1; transform: translateY(-20px) scale(1.2); filter: blur(0); } 
-            100% { opacity: 0; transform: translateY(-120px) scale(1.5); filter: blur(8px); } 
-        }
-        @keyframes awesomeAnimation {
-            0% { opacity: 0; transform: scale(0.5) translateY(20px); filter: blur(10px); }
-            15% { opacity: 1; transform: scale(1.1) translateY(0); filter: blur(0); }
-            85% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
-            100% { opacity: 0; transform: scale(1.3) translateY(-40px); filter: blur(15px); }
-        }
-        .animate-awesome {
-            animation: awesomeAnimation 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-      `}</style>
     </div>
   );
 };

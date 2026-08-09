@@ -1,0 +1,92 @@
+# AfroPI@NO - Development Plan & Comprehensive Project Architecture
+
+## 1. Project Overview & System Philosophy
+**AfroPI@NO** is a high-performance, browser-native rhythmic simulation game engineered in modern React 18 and TypeScript. Designed around authentic Afrobeat, Amapiano, and tribal polyrhythms, it fuses a 60 FPS HTML5 Canvas engine with high-precision Web Audio API synthesis, real-time Energy Flux onset detection for custom MP3s, and an offline-first C++ Audio Engine synthesis lab ("C++ Forge").
+
+### Core Capabilities:
+- **60 FPS Canvas Impact Engine**: Single-pass `requestAnimationFrame` canvas rendering loop with high-DPI scaling, neon glow shaders, multi-lane hit effects, ripple animations, and dynamic HUD updates.
+- **Hybrid Web Audio Architecture**: 
+  - Real-time **Energy Flux Onset Detection** for uploaded MP3/WAV tracks.
+  - Multi-timbral **Amapiano & Afrobeat Synthesizer** (Log Drum sub-bass drops, organic shaker grooves, and resonant kalimba/electric piano harmonics) for instant offline playback of built-in anthems.
+  - Tactile sound feedback on user taps (individual note triggers and multi-frequency hit chimes).
+- **Quad-Phase Dynamic Theming**: Ambient environment phases (Cyan, Violet, Hot Pink, Emerald Neon) that shift smoothly every 20 seconds with animated typography and spectral visualizer alignment.
+- **C++ Audio Forge SDK**: Instant C++17 project code and CMake generator for SFML, SDL2, Raylib, and OpenGL with multi-platform dependency setup guides.
+- **High Performance Local Storage**: High score encryption, accuracy rankings (S, A, B, C), and session persistence in `localStorage`.
+
+---
+
+## 2. Technical Stack
+- **Framework**: React 18 + Vite (ESM, TypeScript, Fast Refresh).
+- **Rendering**: HTML5 2D Canvas with `ResizeObserver` dynamic pixel-ratio compensation.
+- **Sound Engine**: Web Audio API (`AudioContext`, `AnalyserNode`, `GainNode`, `BiquadFilterNode`, `OscillatorNode`, and `AudioBuffer`).
+- **Icons**: Lucide React.
+- **Styling**: Tailwind CSS with custom neon palettes and GPU-accelerated backdrop blur.
+- **Particles**: Canvas-Confetti integration for S/A rank reward sequences.
+
+---
+
+## 3. Architecture & File Structure
+
+```
+├── App.tsx                     # Top-level view router (INTRO -> MENU -> LOADING -> GAME -> RESULTS)
+├── index.html                  # HTML entry point with touch optimization and typography
+├── index.tsx                   # React 18 root mounting
+├── constants.ts                # Neon theme colors, rank thresholds, curated song library
+├── types.ts                    # Strongly typed interfaces (Song, Tile, GameStatus, ViewState, etc.)
+├── DEVELOPMENT_PLAN.txt        # Architectural documentation for AI and developer onboarding
+├── vite.config.ts              # Vite configuration with React plugin and process.env fallback
+├── metadata.json               # Applet metadata, capabilities, and permission declarations
+├── components/
+│   ├── IntroSequence.tsx       # Cinematic brand intro with synchronized animated typography
+│   ├── MenuScreen.tsx          # Song selector, Google Drive / Picker & MP3 upload, view switches
+│   ├── GoogleDriveModal.tsx    # Google Picker & Drive audio file browser modal
+│   ├── LoadingScreen.tsx       # Spectral energy mapping & buffer loading simulation
+│   ├── GameScreen.tsx          # Core Canvas Impact Engine (game loop, touch detection, HUD)
+│   ├── ResultsScreen.tsx       # Performance analytics, rank calculation, combo metrics, confetti
+│   ├── LeaderboardScreen.tsx   # Hall of Fame local leaderboards with score timestamps
+│   ├── CodeGenerator.tsx       # C++ Audio Forge interface with code/cmake tabs and syntax copy
+│   ├── TrackPlayer.tsx         # Audio channel controls with volume modulation
+│   └── Visualizer.tsx          # Real-time frequency spectrum visualizer canvas
+└── services/
+    ├── audioService.ts         # Singleton audio manager: decoding, synthesis, onset detection, timing
+    ├── googleDriveService.ts   # Google Drive & Google Picker OAuth, API streams & audio processing
+    └── geminiService.ts        # C++ Forge generation engine with instant offline fallback templates
+```
+
+---
+
+## 4. Algorithmic Specifications & Work Logic
+
+### A. Real-Time Energy Flux Onset Detection (for External MP3s)
+Implemented in `services/audioService.ts`:
+1. **Windowing**: Extracts PCM channel data and analyzes it in 1024-sample windows with 512-sample hops.
+2. **RMS Power Metric**: Calculates Root Mean Square energy $RMS = \sqrt{\frac{1}{N}\sum x[i]^2}$.
+3. **Spectral Flux**: Computes positive half-wave rectified differences: $Flux = \max(0, RMS_t - RMS_{t-1})$.
+4. **Adaptive Thresholding**: Compares current flux against a sliding window average (16 hops) multiplied by a 1.6x factor.
+5. **Polyrhythmic Lane Assignment**: Disperses detected onsets across 4 lanes utilizing a Least-Recently-Used (LRU) allocation table to prevent lane starvation.
+
+### B. Amapiano & Afrobeat Buffer Synthesizer (for Built-in Songs)
+Implemented in `generateMelodyBuffer()` in `audioService.ts`:
+1. **Log Drum Sub-Bass**: Exponential frequency sweep ($120\text{Hz} \to 48\text{Hz}$) with fast decay envelope simulating authentic South African Amapiano basslines.
+2. **Syncopated Shakers**: Filtered white noise bursts on sixteenth-note subdivisions with accent modulation.
+3. **Harmonic Kalimba/Piano**: Fundamental triangle waves mixed with 2nd and 3rd harmonics, low-pass filtered with natural exponential decay.
+
+### C. Canvas Impact Engine (Game Loop)
+Implemented in `components/GameScreen.tsx`:
+1. **Time Synchronization**: Anchors all tile positions to `audioService.getCurrentTime()` rather than wall-clock time, avoiding drift.
+2. **Visual Mapping**: Computes tile vertical position: $Y = (\text{HitY} - \text{Height}) + ((T_{\text{audio}} - T_{\text{note}}) \times \text{Speed})$.
+3. **Hit Validation**:
+   - `PERFECT`: $|\Delta t| \le 120\text{ms}$ (10 points + combo scaling + radial particle burst)
+   - `GREAT`: $120\text{ms} < |\Delta t| \le 200\text{ms}$ (5 points + combo scaling)
+   - `GOOD/LATE`: $200\text{ms} < |\Delta t| \le 300\text{ms}$ (1 point)
+   - `MISS`: Tile scrolls past bottom boundary $\to$ triggers game over or combo reset.
+
+---
+
+## 5. UI/UX Interaction Design
+- **Mobile-First Layout**: Centered `max-w-lg` column matching standard mobile gaming viewports with full touch prevention (`touch-action: none`).
+- **Tactile Visual Feedback**: Expanding translucent ripples on touch coordinates, lane flash gradients, and animated text floaters.
+- **Audio Lifecycle**: Page visibility listeners safely suspend audio on backgrounding and resume on focus to adhere to mobile battery and audio policies.
+
+---
+*Maintained for AfroPI@NO AI Agent Development & Context Preservation*

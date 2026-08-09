@@ -1,4 +1,3 @@
-
 import { Song, GameRank } from './types';
 
 export const COLORS = {
@@ -25,61 +24,92 @@ export const RANK_THRESHOLDS: { rank: GameRank; minAccuracy: number }[] = [
 ];
 
 export const SONGS: Song[] = [
-  { 
-    id: '1', 
-    title: 'Canon in D', 
-    artist: 'Pachelbel', 
-    bpm: 75, 
-    difficulty: 'Easy',
-    baseSpeed: 0.4,
+  {
+    id: '1',
+    title: 'Sax Dance',
+    artist: 'Tumisho & DJ Manzo (Amapiano Hit)',
+    bpm: 112,
+    difficulty: 'Medium',
+    baseSpeed: 0.6,
     melody: [
-        'D', 'A', 'B', 'F#', 'G', 'D', 'G', 'A',
-        'D', 'A', 'B', 'F#', 'G', 'D', 'G', 'A',
-        'D', 'C#', 'B', 'A', 'G', 'F#', 'G', 'E',
-        'D', 'F#', 'A', 'G', 'F#', 'D', 'F#', 'E',
-        'D', 'A', 'B', 'F#', 'G', 'D', 'G', 'A',
-        'D', 'A', 'B', 'F#', 'G', 'D', 'G', 'A',
-        'D', 'C#', 'B', 'A', 'G', 'F#', 'G', 'E',
-        'D', 'F#', 'A', 'G', 'F#', 'D', 'F#', 'E',
-        'D'
+      'E', 'G', 'A', 'B', 'A', 'G', 'E', 'D',
+      'E', 'G', 'A', 'B', 'D5', 'B', 'A', 'G',
+      'E', 'G', 'A', 'B', 'A', 'G', 'E', 'D',
+      'C', 'D', 'E', 'G', 'A', 'B', 'A', 'E',
+      'E', 'G', 'A', 'B', 'A', 'G', 'E', 'D',
+      'E', 'G', 'A', 'B', 'D5', 'B', 'A', 'G'
     ]
   },
-  { 
-    id: '2', 
-    title: 'Fur Elise', 
-    artist: 'Beethoven', 
-    bpm: 110, 
-    difficulty: 'Medium',
-    baseSpeed: 0.55,
+  {
+    id: '2',
+    title: 'Soweto Log Drum Anthem',
+    artist: 'Amapiano Originals',
+    bpm: 115,
+    difficulty: 'Hard',
+    baseSpeed: 0.72,
     melody: [
-        'E', 'D#', 'E', 'D#', 'E', 'B', 'D', 'C', 'A',
-        'C', 'E', 'A', 'B', 
-        'E', 'G#', 'B', 'C',
-        'E', 'E', 'D#', 'E', 'D#', 'E', 'B', 'D', 'C', 'A',
-        'C', 'E', 'A', 'B', 
-        'E', 'C', 'B', 'A',
-        'B', 'C', 'D', 'E',
-        'G', 'F', 'E', 'D',
-        'F', 'E', 'D', 'C',
-        'E', 'D', 'C', 'B',
-        'E', 'E', 'E', 'E'
+      'A', 'C', 'D', 'E', 'G', 'A', 'G', 'E',
+      'D', 'E', 'G', 'A', 'C5', 'A', 'G', 'E',
+      'A', 'C', 'D', 'E', 'G', 'A', 'G', 'E',
+      'F', 'G', 'A', 'C5', 'D5', 'C5', 'A', 'G',
+      'A', 'C', 'D', 'E', 'G', 'A', 'G', 'E'
     ]
   },
   { 
     id: '3', 
-    title: 'Moonlight Sonata', 
-    artist: 'Beethoven', 
+    title: 'Canon in D (Afrobeat Mix)', 
+    artist: 'Pachelbel & Sunrovo', 
+    bpm: 75, 
+    difficulty: 'Easy',
+    baseSpeed: 0.45,
+    melody: [
+      'D', 'A', 'B', 'F#', 'G', 'D', 'G', 'A',
+      'D', 'A', 'B', 'F#', 'G', 'D', 'G', 'A',
+      'D', 'C#', 'B', 'A', 'G', 'F#', 'G', 'E',
+      'D', 'F#', 'A', 'G', 'F#', 'D', 'F#', 'E',
+      'D', 'A', 'B', 'F#', 'G', 'D', 'G', 'A',
+      'D', 'A', 'B', 'F#', 'G', 'D', 'G', 'A',
+      'D', 'C#', 'B', 'A', 'G', 'F#', 'G', 'E',
+      'D', 'F#', 'A', 'G', 'F#', 'D', 'F#', 'E',
+      'D'
+    ]
+  },
+  { 
+    id: '4', 
+    title: 'Fur Elise (Kwaito Groove)', 
+    artist: 'Beethoven & Sunrovo', 
+    bpm: 110, 
+    difficulty: 'Medium',
+    baseSpeed: 0.58,
+    melody: [
+      'E', 'D#', 'E', 'D#', 'E', 'B', 'D', 'C', 'A',
+      'C', 'E', 'A', 'B', 
+      'E', 'G#', 'B', 'C',
+      'E', 'E', 'D#', 'E', 'D#', 'E', 'B', 'D', 'C', 'A',
+      'C', 'E', 'A', 'B', 
+      'E', 'C', 'B', 'A',
+      'B', 'C', 'D', 'E',
+      'G', 'F', 'E', 'D',
+      'F', 'E', 'D', 'C',
+      'E', 'D', 'C', 'B',
+      'E', 'E', 'E', 'E'
+    ]
+  },
+  { 
+    id: '5', 
+    title: 'Moonlight Sonata (Tribal Pulse)', 
+    artist: 'Beethoven & Sunrovo', 
     bpm: 130, 
     difficulty: 'Hard',
-    baseSpeed: 0.7,
+    baseSpeed: 0.72,
     melody: [
-        'C#', 'C#', 'C#', 'G#', 'C#', 'E', 'G#', 'C#',
-        'E', 'G#', 'C#', 'E', 'G#', 'C#', 'E', 'G#',
-        'B', 'E', 'G#', 'B', 'E', 'G#', 'B', 'E',
-        'A', 'C#', 'E', 'A', 'C#', 'E', 'A', 'C#',
-        'F#', 'A', 'C#', 'F#', 'A', 'C#', 'F#', 'A',
-        'G#', 'C', 'F#', 'G#', 'C', 'F#', 'G#', 'C',
-        'G#', 'C#', 'E', 'G#', 'C#', 'E', 'G#', 'C#'
+      'C#', 'C#', 'C#', 'G#', 'C#', 'E', 'G#', 'C#',
+      'E', 'G#', 'C#', 'E', 'G#', 'C#', 'E', 'G#',
+      'B', 'E', 'G#', 'B', 'E', 'G#', 'B', 'E',
+      'A', 'C#', 'E', 'A', 'C#', 'E', 'A', 'C#',
+      'F#', 'A', 'C#', 'F#', 'A', 'C#', 'F#', 'A',
+      'G#', 'C', 'F#', 'G#', 'C', 'F#', 'G#', 'C',
+      'G#', 'C#', 'E', 'G#', 'C#', 'E', 'G#', 'C#'
     ]
   }
 ];

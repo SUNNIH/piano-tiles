@@ -1,5 +1,8 @@
 {
   "name": "AfroPI@NO",
-  "description": "A high-performance rhythmic simulation game featuring curated Afro-beats and tribal rhythms with a cutting-edge visual engine.",
-  "requestFramePermissions": []
+  "description": "A high-performance rhythmic simulation game featuring curated Afro-beats and tribal rhythms with a cutting-edge visual engine, Google Picker and Google Drive audio import, and local MP3 library support.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

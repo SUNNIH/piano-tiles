@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { COLORS } from '../constants';
-import { Music, Drum, Sparkles } from 'lucide-react';
+import { Music, Sparkles } from 'lucide-react';
 
 interface Props {
   onComplete: () => void;
@@ -56,7 +56,7 @@ const IntroSequence: React.FC<Props> = ({ onComplete }) => {
           <div className="relative mb-10 group">
              <div className="absolute -inset-10 bg-orange-600/10 blur-[60px] rounded-full animate-pulse-slow"></div>
              <div className="p-10 bg-gradient-to-br from-orange-500/10 to-transparent rounded-full border border-orange-500/20 relative z-10 animate-bass-pulse">
-               <Drum className="w-20 h-20 text-orange-500/80" />
+               <Music className="w-20 h-20 text-orange-500/80" />
              </div>
           </div>
           <h2 className="text-3xl font-black tracking-[0.8em] uppercase text-orange-500/60 italic ml-[0.4em] text-center mix-blend-screen">

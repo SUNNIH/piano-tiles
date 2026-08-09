@@ -1,13 +1,15 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import MenuScreen from './components/MenuScreen';
 import GameScreen from './components/GameScreen';
 import IntroSequence from './components/IntroSequence';
 import LoadingScreen from './components/LoadingScreen';
 import ResultsScreen from './components/ResultsScreen';
 import LeaderboardScreen from './components/LeaderboardScreen';
+import CodeGenerator from './components/CodeGenerator';
 import { Song, ViewState, GameResults } from './types';
 import { SONGS, COLORS } from './constants';
+import { audioService } from './services/audioService';
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewState>('INTRO');
@@ -15,49 +17,38 @@ const App: React.FC = () => {
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [lastResults, setLastResults] = useState<GameResults | null>(null);
 
+  // Web Lifecycle Handling
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) audioService.stop();
+      else audioService.resume();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
   const handlePlay = useCallback((song: Song, demo: boolean = false) => {
     setSelectedSong(song);
     setIsDemoMode(demo);
     setView('LOADING');
   }, []);
 
-  const handleLoadingComplete = useCallback(() => {
-    setView('GAME');
-  }, []);
-
-  const handleGameFinish = useCallback((results: GameResults) => {
-    setLastResults(results);
-    setView('RESULTS');
-  }, []);
-
-  const handleExitGame = useCallback(() => {
-    setIsDemoMode(false);
-    setView('MENU');
-  }, []);
-
-  const handleShowLeaderboard = useCallback(() => {
-    setView('LEADERBOARD');
-  }, []);
-
-  const handleIntroComplete = useCallback(() => {
-    setView('MENU');
-  }, []);
-
   return (
     <div className="w-full h-screen flex justify-center bg-black overflow-hidden font-sans">
       <div className="w-full h-full max-w-lg relative shadow-2xl overflow-hidden" style={{ backgroundColor: COLORS.bg }}>
         {view === 'INTRO' && (
-           <IntroSequence onComplete={handleIntroComplete} />
+           <IntroSequence onComplete={() => setView('MENU')} />
         )}
         
         {view === 'LOADING' && (
-          <LoadingScreen song={selectedSong} onComplete={handleLoadingComplete} />
+          <LoadingScreen song={selectedSong} onComplete={() => setView('GAME')} />
         )}
 
         {view === 'MENU' && (
           <MenuScreen 
             onPlay={handlePlay} 
-            onShowLeaderboard={handleShowLeaderboard}
+            onShowLeaderboard={() => setView('LEADERBOARD')}
+            onShowCppForge={() => setView('CPP_FORGE')}
             selectedSong={selectedSong} 
             setSelectedSong={setSelectedSong}
           />
@@ -67,11 +58,19 @@ const App: React.FC = () => {
           <LeaderboardScreen onBack={() => setView('MENU')} />
         )}
 
+        {view === 'CPP_FORGE' && (
+           <CodeGenerator 
+             bgmName={selectedSong.title + (selectedSong.file ? ".mp3" : ".wav")} 
+             bgmVolume={1.0} 
+             onBack={() => setView('MENU')}
+           />
+        )}
+
         {view === 'GAME' && (
           <GameScreen 
             song={selectedSong} 
-            onExit={handleExitGame} 
-            onFinish={handleGameFinish}
+            onExit={() => setView('MENU')} 
+            onFinish={(results) => { setLastResults(results); setView('RESULTS'); }}
             isDemo={isDemoMode}
           />
         )}
@@ -81,7 +80,7 @@ const App: React.FC = () => {
             results={lastResults} 
             song={selectedSong}
             onRetry={() => handlePlay(selectedSong, isDemoMode)}
-            onMainMenu={handleExitGame}
+            onMainMenu={() => setView('MENU')}
           />
         )}
       </div>
